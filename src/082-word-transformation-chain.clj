@@ -10,11 +10,12 @@
                                char-pairs (partition 2 (interleave one-chars two-chars))
                                ]
                            ))
-           close-words (fn [long short] ;Length of strings doesn't matter, this will reorder them as needed
+           close-words? (fn close-words? [long short] ;Length of strings doesn't matter, this will reorder them as needed
+                         {:pre [(string? long) (string? short)] :post [(or (= true %)(= false %))]}
                          (let [long-count (count long)
                                short-count (count short)]
                            (if (< long-count short-count)
-                             (recur short long)
+                             (close-words? short long)
                              (let [same-count (= long-count short-count)]
                               (if (< 1 (- long-count short-count))
                                 false
@@ -24,7 +25,7 @@
                                   (let [more-long (< i-long long-count)
                                         more-short (< i-short short-count)]
                                     (if (not= more-long more-short)
-                                      false #_finished
+                                      (not changed?) ;finished with short. If we changed already, the leftover char in long can't be delivered
                                       (if (not more-long)
                                         true #_finished
                                         (let [same-char (= (nth long i-long) (nth short i-short))]
@@ -32,26 +33,28 @@
                                             (recur (inc i-long) (inc i-short) changed?)
                                             (if changed?
                                               false #_finished
-                                              ;if (not same-count), then you have two choices: insert to the short, or remove from the long.
+                                              (recur (inc i-long) i-short true) ;Simulate removal from long. The same as if we inserted to short:
+                                              ;if (not same-count), then you have two choices: insert to the short, or remove from the long. Equivalent.
                                               ; *X*            *X* =>shorten=> **
                                               ; *X* <=insert<= **              **
                                               ))
                                     )))))
                                 )))))
+           derivatives? (fn [mp] (every? (fn [[from to-s]] (and (string? from) (every? string? to-s))) mp))
            ders (reduce ;ders will be a map of derivatives: {from1 [to1-1 to1-2 to1-3...] from2 [to2-1 to2-2...}
-                  (fn [mp [from to]] {:pre[(every? (fn [[from to-s]] (and (string? from) (every? string? to-s))) mp)]}
+                  (fn [mp [from to]] {:pre[(do (println mp) (println from "=>" to) 1)(derivatives? mp)(string? from)(string? to)]}
                     (merge mp
-                      (if (mp from)
-                        {from (conj (mp from) to)}
-                        {from to})))
+                      (let [existing (mp from)]
+                        (if existing
+                          {from (conj existing to)}
+                          {from [to]}))))
                   {}
-                  (concat
                     (for [from wset
                           to wset
                           :when (not= from to)
-                          :when (close-words from to)]
-                        [[from to]]
-                        )))
+                          :when (close-words? from to)]
+                        [from to]
+                        ))
            _ (println ders)]
           (loop [words-todo-in-stack-above wset;ws
                  words-todo-this-level wset;ws
