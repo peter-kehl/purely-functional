@@ -1,7 +1,8 @@
 (def immediate-wins "Return a set of coordinates [x y] of any placement(s), which (each separately) lead to an immediate win. piece is 'o or 'x; mx is a matrix (vector of rows) of symbols 'o, 'x or 'e for empty."
   (fn [piece matrix]
-    (let [_ (assert (or (= piece 'o)
-                        (= piece 'x)))
+    (let [_ (assert (or (= piece :o)
+                        (= piece :x)
+                        (= piece :e)))
           has-three? (fn [threesome] (= (count threesome) 3))
           _ (assert (and (has-three? matrix)
                          (every? has-three? matrix)))
@@ -41,6 +42,6 @@
 
 
 
-#_(immediate-wins :x [[:o :e :e]
+(immediate-wins :x [[:o :e :e]
                     [:o :x :o]
                     [:x :x :e]])
