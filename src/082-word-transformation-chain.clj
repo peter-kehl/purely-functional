@@ -57,39 +57,42 @@
                           :when (close-words? from to)]
                         [from to]
                         ))
-           _ (println ders)
-           starter-word (first wset)] ;Pick up a starter word. Any will do, because every word has to be on the path.
+           _ (println "derivatives" ders)
+           contained? (fn [item coll]
+                        (some (partial = item) coll))
+           starter-word (first wset)]
+     (boolean
+     (some (fn [starter-word] ;Pick up a starter word. NOT any word, because a starter and ender may have only one neighbour => one transformation in use, but words in between have two neighbours => transformations in use.
       ;Each word must be used exactly once per path. We keep the most recently reached words, and leftover words for each of them.
+      (println "starter" starter-word)
       (loop [reached+leftovers [[starter-word (seq (disj wset starter-word))]]] ;seq of [last-reached-word (leftover-words...)]. Not a map, because the same word may be reached through different paths.
-        (println reached+leftovers)
+        ;(println)
+        (println "loop" reached+leftovers)
+        (println)
         (assert (every? string? (map first reached+leftovers)))
         (assert (every? (partial every? string?) (map second reached+leftovers)))
-        (let [reached+leftovers-new (for [[reached leftovers] reached+leftovers
-                                          reached-next (ders reached ())]
-                                      (let [leftovers-next (remove (partial = reached-next) leftovers)]
-                                        (println "\n" leftovers-next)
-                                        (list reached-next leftovers-next)
-                                      ))
+        (assert (every? (fn [[word leftovers]] (not (contained? word leftovers))) reached+leftovers))
+        (assert (apply = (map (comp count second) reached+leftovers))) ;all chains have same number of leftovers, because every step consumes exactly one word
+        (let [reached+leftovers-new (doall (for [[reached leftovers] reached+leftovers
+                                                 :let [_ (println "reached (fro prev)" reached)]
+                                                 reached-next (ders reached ())
+                                                 :let [_ (println "reached-next candidate" reached-next), _ (flush)]
+                                                 :when (contained? reached-next leftovers)] ;ders contains all possible derivatives, including ones that we already covered. Hence choose only derivatives not used yet.
+                                             (let [leftovers-next (remove (partial = reached-next) leftovers)]
+                                               (println "reached-next leftovers-next:" reached-next leftovers-next)(flush)
+                                               (list reached-next leftovers-next)
+                                      )))
               reached+leftovers-new-seq (seq reached+leftovers-new)]
+          (println "----")
           (if reached+leftovers-new-seq
-            (recur reached+leftovers-new-seq)
-            (not (every? empty? (map second reached+leftovers)))))
-      )
-          #_(loop [words-todo-in-stack-above wset;ws
-                 words-todo-this-level wset;ws
-                 from nil
-                 is-1st-level true]
-            (assert (= (nil? from) is-1st-level))
-            (if is-1st-level
-              false; (recur words-todo-in-stack-above (rest words-todo-this-level) (first words-todo-this-level) false)
-              
-              (let [words-todo (remove #{from} words-todo-this-level)
-                    unknown      (cond
-                                   (ders from) true
-                                   (empty? words-todo-this-level #_maybe) false)]))
-            true
-            (empty? words-todo-in-stack-above ) false)))
-            ;:else (recur (rest words-todo-in-stack-above
+            (if (= 1 (count (second (first reached+leftovers-new-seq))))
+              (some (fn [[reached leftovers]]
+                        (contained? (first leftovers) (ders reached)))
+                      reached+leftovers-new-seq); We reached the one but last chain. (some ...) determines the overall result, because it says whether any path is reachable (in one step).
+              (recur reached+leftovers-new-seq))
+            false)) ;one path (i.e. no leftovers) is enough
+        ))
+        wset))))
    )
-(word-chains #{"hat" "coat" "dog" "cat" "oat" "cot" "hot" "hog"})
-  
+;(word-chains #{"hat" "coat" "dog" "cat" "oat" "cot" "hot" "hog"})
+(word-chains #{"share" "hares" "shares" "hare" "are"})  
