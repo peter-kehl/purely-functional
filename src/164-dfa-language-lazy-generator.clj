@@ -6,25 +6,26 @@
          accepts (dfa :accepts)
          transitions (dfa :transitions)
          state? (fn [state] (states state))
-         accept? (fn [state] {:pre [(state? state)]}
+         accept? (fn [state] ;{:pre [(state? state)]}
                      (accepts state))
          letter? (fn [letter] (alphabet letter))
          path? (fn [[letters state]] (and (every? letter? letters)
                                             (state? state)))
          ; Return a new path, with its first part (letters) a seq in reverse (hence reusing subsequences). Return nil the given previous path doesn't accept the given letter.
-         path-new (fn [letter sub-path state] {:pre [(path? sub-path) (letter? letter) (state? state)] :post[(path? %)]}
+         path-new (fn [letter sub-path state] ;{:pre [(path? sub-path) (letter? letter) (state? state)] :post[(path? %)]}
                     (list (cons letter (first sub-path)) state))
-         path-state (fn [path] {:pre [(path? path)]}
+         path-state (fn [path] ;{:pre [(path? path)]}
                       (second path))
-         path-to-word (fn [path] {:pre [(path? path)]} ;Paths have letters in reverse (created via cons).
+         path-to-word (fn [path] ;{:pre [(path? path)]} ;Paths have letters in reverse (created via cons).
                         (apply str (reverse (first path))))
-         contained? (fn [coll item] {:pre [(not= item nil) (not= item false)]} (some (partial = item) coll)) ;the order of params. is for use with (partial ...) to check items. If you'd like its (partial ...) to check collections, reverse the parameters.
+         contained? (fn [coll item] ;{:pre [(not= item nil) (not= item false)]}
+                      (some (partial = item) coll)) ;the order of params. is for use with (partial ...) to check items. If you'd like its (partial ...) to check collections, reverse the parameters.
          new-split-paths? #_OBSOLETE (fn [[accepted mixcepted] mixcepted-prev] ;two groups of paths, first in accepted states, the second in unaccepted states plus any paths from the first group. This split speeds up delivery. This only applies when adding paths (delta); later on, as accepted paths are taken out, mixcepted may contain paths with accepted states that are not in `accepted` anymore.
                         (and (every? path?  accepted) (every?                            (comp accept? path-state) accepted)
                              (every? path? mixcepted) (every? (some-fn (comp (complement (comp accept? path-state)))
                                                                        (partial contained? accepted) 
                                                                        mixcepted))))
-         step-letter-OBSOLETE (fn [[accepted mixcepted :as split-paths]] {:pre [(every? path? accepted) (every? path? mixcepted)] :post [(new-split-paths? % accepted)]} ;split-paths => new split-paths (delta);  accepted only serves for validation in :post
+         step-letter-OBSOLETE (fn [[accepted mixcepted :as split-paths]] ;{:pre [(every? path? accepted) (every? path? mixcepted)] :post [(new-split-paths? % accepted)]} ;split-paths => new split-paths (delta);  accepted only serves for validation in :post
                            "undefined")
          ;--------
          ;even though a path reached an accepted state, it can also continue
@@ -45,7 +46,7 @@
          state-transitions? (fn [trans] (and (map? trans)
                                              (every? letter? (keys trans))
                                              (every? state? (vals trans)))) ;trans is a per-state submap of transitions map
-         step-states (fn [mixcepted-prev] {:pre [(every? path? mixcepted-prev)] :post [(step-states-result? mixcepted-prev %)]} ;step every path one letter forward
+         step-states (fn [mixcepted-prev] ;{:pre [(every? path? mixcepted-prev)] :post [(step-states-result? mixcepted-prev %)]} ;step every path one letter forward
                       (let [[accepted mixcepted :as both]
                        (reduce (fn [[accepted mixcepted] path-prev]
                                  (let [state-prev (path-state path-prev)
@@ -68,7 +69,7 @@
                                                                      (string? word))
                                                                 #_(println "split" split-paths "word" word))) ;word-is-in-human-friendly-order already
          step-word (fn step-word [[accepted mixcepted :as split-paths]] ;nil if no more words
-                     {:pre [(split-paths? split-paths)] :post [(step-word-result? %)]}
+                     ;{:pre [(split-paths? split-paths)] :post [(step-word-result? %)]}
                      (let [accepted-seq (seq accepted)]
                        (if accepted-seq ;return a word, remove from accepted. Every accepted path was also put in unaccepted, hence no need to move it here.
                          [[(rest accepted-seq) mixcepted] (path-to-word (first accepted-seq))]
@@ -97,4 +98,5 @@
                                   (if word
                                     (cons word (lazy-words split-paths-new))
                                     ()))))]
-      (lazy-words starter-groups))))
+     (lazy-words starter-groups)))
+  )
