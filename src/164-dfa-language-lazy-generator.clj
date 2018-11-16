@@ -1,5 +1,5 @@
-(def dfa-lang-seq-fn
- (fn dfa-lang-seq [dfa]
+(def dfa-seq
+ (fn dfa-seq [dfa]
    (let [states (dfa :states)
          alphabet (dfa :alphabet)
          start (dfa :start)
@@ -34,18 +34,22 @@
                              (every? (comp accept? path-state) accepted)
                              (every? (partial contained? mixcepted) accepted))) ;every accepted path is also in mixcepted
          step-states-result? (fn [mixcepted-prev [accepted mixcepted :as path-groups]] ;more strict than (split-paths?), this accepts only from (step-states), when any acceptable states in `mixcepted` are (still) in `accepted`.
+                              (or
+                               (nil? path-groups)
                                (and (split-paths? path-groups)
                                     (every? (some-fn empty?
                                                      (partial contained? accepted) ;every mixcepted path is either in accepted, or is not acceptable as it is. I.e. there are no accepted paths in it other than those also present in `accepted`.
                                                      (complement (comp accept? path-state)))
                                             mixcepted)
-                                    (every? (complement (partial contained? mixcepted-prev)) (concat accepted mixcepted))))
-         state-transitions? (fn [trans] (and (map? trans) (every? letter? (keys trans)) (every? state? (vals trans)))) ;trans is a per-state submap of transitions map
+                                    (every? (complement (partial contained? mixcepted-prev)) (concat accepted mixcepted)))))
+         state-transitions? (fn [trans] (and (map? trans)
+                                             (every? letter? (keys trans))
+                                             (every? state? (vals trans)))) ;trans is a per-state submap of transitions map
          step-states (fn [mixcepted-prev] {:pre [(every? path? mixcepted-prev)] :post [(step-states-result? mixcepted-prev %)]} ;step every path one letter forward
                       (let [[accepted mixcepted :as both]
                        (reduce (fn [[accepted mixcepted] path-prev]
                                  (let [state-prev (path-state path-prev)
-                                       state-transitions (transitions state-prev)
+                                       state-transitions (transitions state-prev {})
                                        _ (assert (state-transitions? state-transitions))
                                        [accepted-part mixcepted-part] (reduce (fn [[accepted-part mixcepted-part] [letter new-state]]
                                                                                 (let [new-path (path-new letter path-prev new-state)
@@ -60,8 +64,9 @@
                          both
                          nil)))
          step-word-result? (fn [[split-paths word :as all]] (or (nil? all)
-                                                                (and (split-paths? split-paths) (every? letter? word)
-                                                                     (accept? (last word))))) ;word-is-in-human-friendly-order already
+                                                                (and (split-paths? split-paths)(every? (comp letter? symbol str) (seq word))
+                                                                     (string? word))
+                                                                #_(println "split" split-paths "word" word))) ;word-is-in-human-friendly-order already
          step-word (fn step-word [[accepted mixcepted :as split-paths]] ;nil if no more words
                      {:pre [(split-paths? split-paths)] :post [(step-word-result? %)]}
                      (let [accepted-seq (seq accepted)]
