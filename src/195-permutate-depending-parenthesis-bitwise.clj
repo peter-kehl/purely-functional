@@ -418,7 +418,7 @@
          ()
          (map humanise
            (level 0 0 target-n target-n)))))))
-; the following is the last test from 4clojure. It takes 1.9-2.4sec - too slow!
+; the following is the last test. It takes 1.9-2.4sec - too slow!
 ; But it's slow even if you replace (map humanise...) with (map identity...): 2.2-2.6sec!
 ; Replacing (man humanise ...) with calling (humanise...) at the leaf level from (level) saves only c.a. 100ms.
 ;(time (= (nth (sort (parens-stack 12)) 5000) "(((((()()()()()))))(()))"))
