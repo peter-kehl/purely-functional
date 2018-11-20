@@ -55,13 +55,13 @@
                              :let [corner [corner-x corner-y], _ (println "corner" corner-x corner-y)]
                              :when [(at corner)]
                              dir-left-side  directions
-                             ;Combinations of angles at the corner & at the neighbour on the left side: 45deg + 45deg, or 90deg + 45deg.
-                             ;Excluding 45deg + 90deg, because then right side becomes the longest one, hence getting longer by 2!
-                             ;places at every inner loop iteration. Even though lazy-seq helped to close the triangle, calculating the triangle's
-                             ;area would be unnecessarily complex. That scenario is handled by another turn of dir-left-side, hence all covered.``
-                             [dir-right-side dir-left-right] [[(turn dir-left-side 1) (turn dir-left-side 3)] ;45deg + 45deg
-                                                              [(turn dir-left-side 2) (turn dir-left-side 3)]];90deg + 45deg
-                             :let[#_right-corner-generator #_(fn right-corner-gen [start]
+                             ;We only handle 90 degrees at the corner. As we rotate, and we try every place as the "main" corner, that handles all possible triangles.
+                             ;Otherwise we need to handle many special cases. E.g. the longest side getting longer by two
+                             ;places (instead of just one) at every inner loop iteration. Even though lazy-seq helped to close the triangle, calculating the triangle's
+                             ;area would be unnecessarily complex.
+                             :let[dir-right-side (turn dir-left-side 2) ;90deg
+                                  dir-left-right (turn dir-left-side 3) ;45deg between the left side and the side opposite to "the corner" (i.e. the left to right neighbour side)
+                                  #_right-corner-generator #_(fn right-corner-gen [start]
                                                                  (lazy-seq (cons start
                                                                              (let [place (move start dir-right-side)]
                                                                                (if (place? place)
@@ -74,16 +74,17 @@
                                          (println "outer loop: left-corner" left-corner "right-corner" right-corner "size-so-far" size-so-far "dir-left-side" dir-left-side "dir-right-side" dir-right-side "dir-left-right" dir-left-right)
                                          (let [left-corner-new  (move  left-corner  dir-left-side)
                                                right-corner-new (move right-corner dir-right-side)
-                                               left-to-right-length (loop [place left-corner-new ;loop returns nil if the line is not purely mineral
-                                                                           length 0]
-                                                                       (println "inner loop: place" place "length" length)
-                                                                       (if (at place)
-                                                                           (if (= place right-corner-new) ;(=...) could be replaced by (index-of place right-corner-seq) to handle when right side get longer by two units (rather than just one unit) per iteration
-                                                                               (inc length)
-                                                                               (let [place-new (move place dir-left-right)]
-                                                                                  (assert (place? place-new) (str "place-new" place-new))
-                                                                                  (recur place-new (inc length))))
-                                                                           nil))]
+                                               left-to-right-length (if (place? right-corner-new)
+                                                                       (loop [place left-corner-new ;loop returns nil if the line is not purely mineral
+                                                                              length 0]
+                                                                          (println "inner loop: place" place "length" length)
+                                                                          (if (at place)
+                                                                             (if (= place right-corner-new) ;(=...) could be replaced by (index-of place right-corner-seq) to handle when right side get longer by two units (rather than just one unit) per iteration
+                                                                                (inc length)
+                                                                                (let [place-new (move place dir-left-right)]
+                                                                                   (assert (place? place-new) (str "place-new" place-new))
+                                                                                   (recur place-new (inc length))))
+                                                                             nil)))]
                                            (if left-to-right-length
                                                (recur left-corner-new right-corner-new (+ size-so-far left-to-right-length))
                                                size-so-far)))]
