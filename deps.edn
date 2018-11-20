@@ -3,5 +3,5 @@
  {org.clojure/clojure {:mvn/version #_"1.10.0-beta3" "1.4.0"}
   #_{:mvn/version "0.1.2-SNAPSHOT"}
   ; Following works for local, with (require 'dbg.main)
-  dbg {:local/root "/home/pkehl/GIT/dbg"}
+  ;dbg {:local/root "/home/pkehl/GIT/dbg"}
 }}

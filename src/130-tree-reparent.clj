@@ -61,9 +61,11 @@
                           (cons parent (ancestors parent))
                           nil
                           )))
+          remove-child (fn [tree child] {:pre [(tree? tree) (node? child)]}
+                         ())
           pickup-ancestors (ancestors pickup)
           pickup-subtrees (subtrees pickup)
-          pickup-tree (cons)]
+          pickup-tree (cons pickup)]
 
       )))
 
