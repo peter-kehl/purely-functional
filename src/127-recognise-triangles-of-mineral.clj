@@ -7,17 +7,19 @@
 ;Pick a corner point. Take one of 8 directions -> one side of triangle.
 ;The other side from the same corner has two options: the next (neighbouring) direction (45 degrees), or the second next direction (90 degrees).
 (fn [num-per-row]
-  (let [mx (vec (for [numeric-line num-per-row]
-                   (vec (for [digit (seq (Integer/toString numeric-line 2))]
-                      ({\0 false \1 true} digit)))))
+  (let [mx-incomplete (vec (for [numeric-line num-per-row] ;mx-incomplete is the given matrix, but without any leading false's (i.e. leading 0's)
+                             (vec (for [digit (seq (Integer/toString numeric-line 2))]
+                                     ({\0 false \1 true} digit)))))
         ; [x y] x is  row, y is a column
+        height (count mx-incomplete)
+        width (apply max (map count mx-incomplete))
+        mx (vec (for [row-inco mx-incomplete]
+                   (vec (concat (repeat (- width (count row-inco)) false) row-inco))))
         directions #_from-top-left-clockwise [[-1 -1] [-1 0] [-1 1] [0 1] [1 1] [1 0] [1 -1] [0 -1]]
         numbered-direction #_rotate-index-overflow (fn [num] (directions (rem num 8)))
         line (fn [])
         right-of (fn []) ;<<<<
         left-of (fn [])
-        height (count mx)
-        width (count (first mx))
         x-range (seq (vec (range 0 height)))
         y-range (seq (vec (range 0 width)))
         _ (assert (every? (comp (partial = width) count) mx))
