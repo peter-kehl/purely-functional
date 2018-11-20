@@ -23,8 +23,9 @@
         x-range (seq (vec (range 0 height)))
         y-range (seq (vec (range 0 width)))
         _ (assert (every? (comp (partial = width) count) mx))
+        _ (assert (every? (partial every? (comp (partial = java.lang.Boolean) type)) mx))
         ;mx is a matrix-like map of maps, with indexes that can be negative: relative to the start point.
-        at (fn [[x y :as coordinates]] {:pre [(= (count coordinates) 2)]} #_returns-nil-if-not-set (get-in mx [x y]))
+        at (fn [[x y :as coordinates]] {:pre [(= (count coordinates) 2) (number? x) (number? y)]} #_returns-nil-if-not-set (get-in mx coordinates))
         ;directions as [delta-x delta-y], in coordinates where x is a row, y is a column, [0 0] is the top left corner. D down, U up, R right, L left:
         direction? (fn [[delta-x delta-y :as all]] (and (= (count all) 2) (<= -1 delta-x 1) (<= -1 delta-y 1) (not= delta-x delta-y 0)))
         _ (assert (every? direction? directions))
@@ -54,8 +55,9 @@
         _ (println "x-range" x-range "y-range" y-range "directions" directions)
         triangle-sizes (for [corner-x x-range
                              corner-y y-range
-                             :let [corner [corner-x corner-y], _ (println "corner" corner-x corner-y)]
-                             :when [(at corner)]
+                             :let [corner [corner-x corner-y]]
+                             :when (at corner)
+                             :let [_ (println "corner" corner)]
                              dir-left-side  directions
                              ;We only handle 90 degrees at the corner. As we rotate, and we try every place as the "main" corner, that handles all possible triangles.
                              ;Otherwise we need to handle many special cases. E.g. the longest side getting longer by two
