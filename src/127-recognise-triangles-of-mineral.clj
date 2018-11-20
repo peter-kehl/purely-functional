@@ -1,3 +1,6 @@
+#_(ns minerals
+  (:require dbg.main))
+;The other side from the same corner has two options: the next (neighbouring) direction (45 degrees), or the second next direction (90 degrees).
 (def triangles
 ;the comments in examples suggest a transformation, but they're an illustration only!
 ;the return value is the size of the area, or nil.
@@ -44,31 +47,49 @@
                                (filter place?
                                        (for [dir directions]
                                          (move from dir))))
+        _ (doseq [row mx]
+            (println (apply str (map {true 1, false 0} row))))
+        _ (println "x-range" x-range "y-range" y-range "directions" directions)
         triangle-sizes (for [corner-x x-range
                              corner-y y-range
-                             :let [corner [corner-x corner-y]]
+                             :let [corner [corner-x corner-y], _ (println "corner" corner-x corner-y)]
                              :when [(at corner)]
                              dir-left-side  directions
-                             [dir-right-side dir-left-right] [[(turn dir-left-side 1) (turn dir-left-side 2)] ;45degrees
-                                                              [(turn dir-left-side 2) (turn dir-left-side 3)]];90degrees
-                             size (loop [left-corner corner
-                                         right-corner corner
-                                         size-so-far 1]
-                                    (let [left-corner-new  (move  left-corner  dir-left-side)
-                                          right-corner-new (move right-corner dir-right-side)
-                                          left-to-right-length (loop [place left-corner-new ;loop returns nil if the line is not purely mineral
-                                                                      length 0]
-                                                                 (let [place-new (move place dir-left-right)]
-                                                                   (assert place? place-new)
-                                                                   (if (at place)
-                                                                     (if (= place right-corner-new)
-                                                                       (inc length)
-                                                                       (recur place-new (inc length)))
-                                                                     nil)))]
-                                      (if left-to-right-length
-                                        (recur left-corner-new right-corner-new (+ size-so-far left-to-right-length))
-                                        size-so-far)))
-                             :when (< 1 size)]
+                             ;Combinations of angles at the corner & at the neighbour on the left side: 45deg + 45deg, or 90deg + 45deg.
+                             ;Excluding 45deg + 90deg, because then right side becomes the longest one, hence getting longer by 2!
+                             ;places at every inner loop iteration. Even though lazy-seq helped to close the triangle, calculating the triangle's
+                             ;area would be unnecessarily complex. That scenario is handled by another turn of dir-left-side, hence all covered.``
+                             [dir-right-side dir-left-right] [[(turn dir-left-side 1) (turn dir-left-side 3)] ;45deg + 45deg
+                                                              [(turn dir-left-side 2) (turn dir-left-side 3)]];90deg + 45deg
+                             :let[#_right-corner-generator #_(fn right-corner-gen [start]
+                                                                 (lazy-seq (cons start
+                                                                             (let [place (move start dir-right-side)]
+                                                                               (if (place? place)
+                                                                                 (right-corner-gen place)
+                                                                                 ())))))
+                                  ;right-corner-seq (right-corner-generator corner)
+                                  size (loop [left-corner corner
+                                              right-corner corner
+                                              size-so-far 1]
+                                         (println "outer loop: left-corner" left-corner "right-corner" right-corner "size-so-far" size-so-far "dir-left-side" dir-left-side "dir-right-side" dir-right-side "dir-left-right" dir-left-right)
+                                         (let [left-corner-new  (move  left-corner  dir-left-side)
+                                               right-corner-new (move right-corner dir-right-side)
+                                               left-to-right-length (loop [place left-corner-new ;loop returns nil if the line is not purely mineral
+                                                                           length 0]
+                                                                       (println "inner loop: place" place "length" length)
+                                                                       (if (at place)
+                                                                           (if (= place right-corner-new) ;(=...) could be replaced by (index-of place right-corner-seq) to handle when right side get longer by two units (rather than just one unit) per iteration
+                                                                               (inc length)
+                                                                               (let [place-new (move place dir-left-right)]
+                                                                                  (assert (place? place-new) (str "place-new" place-new))
+                                                                                  (recur place-new (inc length))))
+                                                                           nil))]
+                                           (if left-to-right-length
+                                               (recur left-corner-new right-corner-new (+ size-so-far left-to-right-length))
+                                               size-so-far)))]
+                             :when (<= 3 size)]
                            size )
         ]
-    (triangle-sizes mx))))
+    (if (seq triangle-sizes)
+        (apply max triangle-sizes)
+        nil))))
