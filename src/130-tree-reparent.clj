@@ -1,7 +1,9 @@
 (def reparent
   (fn [pickup whole-tree]
     (let [node? symbol?
-          tree? seq?
+          tree? (fn tree? [tree] (and (seq? tree)
+                                      (node? (first tree))
+                                      (every? tree? (rest tree))))
           contained? (fn [item coll] {:pre[item #_not-for-null-false-or-nil]}
                        (some (partial = item) coll))
           subtree-seq (tree-seq seq? rest whole-tree)
@@ -10,21 +12,23 @@
                                   (and (or (= (count whole) 2) (empty? whole))
                                        (or (empty? whole) (and (node? node) (seq? subtrees)))
                                        (every? (some-fn tree? node?) subtrees))) ;every? works with coll being nil
-          subtree-seq-item? (fn [item] (or (tree? item) (node? item)))
+          tree-or-node? (fn [item] (or (tree? item) (node? item)))
+          subtree-seq-item? tree-or-node?
           node-subtrees (fn [seq-item] {:pre [(subtree-seq-item? seq-item)] :post [(node-subtrees-result? %)]}
                              (if (tree? seq-item)
                                [(first seq-item) (rest seq-item)]
                                []))
           subtrees (reduce (fn [res seq-item] ;subtrees is a map: node parent to a seq of subtrees
                              (let [pair (node-subtrees seq-item)]
-                               (if (empty? pair) ;CLJ 1.4 doesn't have 1-arg (conj coll), hence can't (apply conj coll ...)
+                               (if (empty? pair)
                                  res
                                  (conj res pair))))
                            {} subtree-seq)
           _ (assert (= (subtrees (first whole-tree)) (rest whole-tree)))
           _ (assert (every? node? (keys subtrees)))
-          _ (assert (every? tree? (vals subtrees)))
-          node-of (fn [tree-or-node] {:pre [(or (node? tree-or-node) (tree? tree-or-node))] :post [(node? %)]}
+          _ (assert (every? seq?  (vals subtrees)))
+          _ (assert (every? (partial every? (some-fn tree? node?)) (vals subtrees)))
+          node-of (fn [tree-or-node] {:pre [(tree-or-node? tree-or-node)] :post [(node? %)]}
                     (if (node? tree-or-node)
                       tree-or-node
                       (first tree-or-node))
@@ -61,11 +65,39 @@
                           (cons parent (ancestors parent))
                           nil
                           )))
-          remove-child (fn [tree child] {:pre [(tree? tree) (node? child)]}
-                         ())
+          remove-child (fn [tree child-node] {:pre  [(tree? tree) (node? child-node)]
+                                               :post [(tree? %)]}
+                         (filter (complement (comp (partial = child-node)) node-of) tree))
           pickup-ancestors (ancestors pickup)
           pickup-subtrees (subtrees pickup)
-          pickup-tree (cons pickup)]
+          ;pickup-tree (seq (conj [pickup]))
+          pickup-tree-without-ancestors (concat (list pickup) pickup-subtrees)
+          ancestors-underOBS (seq (reduce (fn [res ancestor-seq]
+                                          )
+                                          () ancestors))
+          ; 1. (nil? ancestors) ==> nil
+          ; 2. ancestors is
+          _ '((parent-symb (other-child #_nieces) (child #_own-children #_to_remove)                              #_siblings)
+              (grand-parent-symb (uncle #_cousins) (parent-symb #_etc #_to_remove)                       #_uncles)
+              (great-grandparent-symb (grand-uncle #_etc) (grand-parent-symb #_extended-fam #_to_remove) #_grand-uncles)
+              #_etc)
+          ; =>
+          _ '((parent-symb (other-child #_nieces) #_child-removed #_siblings
+                           (grand-parent-symb (uncle #_etc) #_parent-removed #_uncles
+                                              (great-grandparent-symb (grand-uncle #_etc) #_etc
+                                                                      #_etc))))
+              #_etc)
+          ancestors-under ((fn upside-down [child ancestors] ;child is used only for removal, it won't be in the returned sub-structure. ancestors is non-empty, or nil (hence you can use outer map's value: (ancestors child)).
+                             {:pre [(node? child) (or (nil? ancestors) (seq ancestors))]
+                              :post [(tree? %)]}
+                              (if-let [parent (first ancestors)]
+                                (let [parent-separated (remove-child parent child)
+                                      elders (next ancestors)]
+                                  (if elders
+                                    (concat parent-separated
+                                            (list (upside-down (node-of parent) elders)))
+                                    parent-separated)))))
+                            ]
 
       )))
 
