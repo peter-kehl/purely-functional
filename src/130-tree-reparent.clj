@@ -101,14 +101,19 @@
                               (if-let [parent (first ancestors)]
                                 (let [parent-separated (remove-child (tree-or-node parent) child)
                                       elders (next ancestors)]
+                                  ;(println "parent-sep" parent-separated "elders" elders)
                                   (if elders
-                                    (concat parent-separated
+                                    (seq (conj (vec parent-separated)
+                                            (upside-down (node-of parent) elders)))
+                                    #_(concat parent-separated
                                             (upside-down (node-of parent) elders))
                                     parent-separated))))
                            pickup (ancestors pickup))
           ]
-      (concat pickup-tree-without-ancestors ancestors-under)
-
+      ;(concat pickup-tree-without-ancestors ancestors-under)
+      (if ancestors-under
+        (seq (conj (vec pickup-tree-without-ancestors) ancestors-under))
+        pickup-tree-without-ancestors)
       )))
 
 
