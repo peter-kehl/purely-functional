@@ -105,12 +105,9 @@
                                   (if elders
                                     (seq (conj (vec parent-separated)
                                             (upside-down (node-of parent) elders)))
-                                    #_(concat parent-separated
-                                            (upside-down (node-of parent) elders))
                                     parent-separated))))
                            pickup (ancestors pickup))
           ]
-      ;(concat pickup-tree-without-ancestors ancestors-under)
       (if ancestors-under
         (seq (conj (vec pickup-tree-without-ancestors) ancestors-under))
         pickup-tree-without-ancestors)
