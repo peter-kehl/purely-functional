@@ -1,5 +1,8 @@
 (set! *warn-on-reflection* true)
 
+(require 'primitive-math)
+;(primitive-math/use-primitive-operators) ; must be used together with *warn-on-reflection*. It doesn't work without it!
+
 (def parens-flat-hint
   ; - prev: the last result
   ; binary 1 for an opener (, 0 for a closer )
@@ -8,7 +11,7 @@
   ; For n-pairs=12: 620-740ms. (map humanise ...) takes only 40-120ms out of the total.
   ; Added cons-closers => total 480ms. Turned off one last assert => total 460ms.
   ; "int" primitive type hints generate "long", hence I use long directly.
-  (fn [n-pairs]
+  (fn [^long n-pairs]
     (let [n-pairs*2 (long (* 2 n-pairs))
           n-pairs*2-1 (long (dec n-pairs*2))]
       (letfn [(digits [numb] ;Get binary digits of a number.
@@ -20,15 +23,15 @@
                 (count (filter (partial = digit) (digits numb))))
 
               ; cons-closers is the number of consecutive closers \) from the very right.
-              (generate [^long prev cumulated #_^long X cons-closers]
+              (generate [^long prev #_no-need-for-typehint cumulated ^long  cons-closers]
                 ;(assert (and (<= 0 openers) (<= 0 closers) (<= 0 diff) (= diff (- closers openers))))
                 ;(assert (or (zero? diff) (pos? closers)))
                 ;(println "prev: " (clojure.pprint/cl-format nil "~,'0',B" prev))
                 ;(assert (= (count-digits prev true) (count-digits prev true) n-pairs) (str "prev: " prev))
-                (let [[swap-point openers closers]
+                (let [[^long swap-point ^long openers ^long closers]
                       (loop [i (long cons-closers)
                              openers (long 0)
-                             closers (long cons-closers)]
+                             closers i]
                         ;(assert (= i (+ openers closers)))
                         (if (bit-test prev i) #_an-opener?
                           (let [openers+1 (inc openers)]
@@ -36,14 +39,17 @@
                               ;(list ...) is slower than [...], because CLJ optimises [...] with destructuring.
                               [i openers closers] ;(list i openers closers)
                               (if (= n-pairs*2-1 i) #_leftmost-digit?
-                                [0 0 0] ;(list 0 0 0) #_we-have-finished
+                                [(long 0) (long 0) (long 0)] ;(list 0 0 0) #_we-have-finished
                                 (recur   (inc i)      openers+1    closers))) #_an-opener-but-not-a-swap-point-yet)
                           (recur         (inc i)      openers (inc closers)) #_a-closer))]
                   (if (zero? swap-point)
                     cumulated #_finished
                     (let [;_ (assert (bit-test prev swap-point)) #_opener
                           closers-1 (dec closers)
-                          value (loop [value (long (bit-flip prev swap-point)) #_opener==>closer
+                          value
+                          #_loop-always-returns-object-hence-cast-its-result
+                          (long (loop #_typehint-doesnt-help-right-after-loop-word
+                                      [#_typhint-didnt-help-here value (long (bit-flip prev swap-point)) #_opener==>closer
                                        i (dec swap-point) #_>>
                                        openers (inc openers)
                                        closers closers-1]
@@ -53,9 +59,9 @@
                                     (pos? closers) (recur (long (bit-clear value i)) (dec i)      openers (dec closers))
                                     :else  (do
                                              ;(assert (neg? i))
-                                             value)))]
+                                             value))))]
                       ;(assert (number? value) (str "value from loop: " value))
-                      (recur value (cons value cumulated) closers-1)))))
+                      (recur  value (cons value cumulated) closers-1)))))
               (humanise [number]
                 (clojure.string/replace
                   (clojure.string/replace (java.lang.Long/toBinaryString number) ;toBinaryString is faster 40ms than clojure.pprint/cl-format 308ms.

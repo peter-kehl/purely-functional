@@ -4,4 +4,5 @@
   #_{:mvn/version "0.1.2-SNAPSHOT"}
   ; Following works for local, with (require 'dbg.main)
   ;dbg {:local/root "/home/pkehl/GIT/dbg"}
+  primitive-math {:mvn/version "0.1.6"}
 }}
