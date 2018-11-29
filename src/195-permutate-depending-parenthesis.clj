@@ -3,6 +3,8 @@
 (require 'primitive-math)
 ;(primitive-math/use-primitive-operators) ; must be used together with *warn-on-reflection*. It doesn't work without it!
 
+(defmacro assert-prim-long [x] `(== (long ~x) ~x)) ;works with primitive-math/use-primitive-operators and *warn-on-reflection* together
+
 (def parens-flat-hint
   ; - prev: the last result
   ; binary 1 for an opener (, 0 for a closer )
@@ -53,10 +55,11 @@
                                        i (dec swap-point) #_>>
                                        openers (inc openers)
                                        closers closers-1]
+                                  (assert-prim-long value)
                                   ;(println "value in loop:" (clojure.pprint/cl-format nil "~,'0',B" value) "openers:" openers "closers:" closers)
                                   (cond
-                                    (pos? openers) (recur (long (bit-set   value i)) (dec i) (dec openers)     closers)
-                                    (pos? closers) (recur (long (bit-clear value i)) (dec i)      openers (dec closers))
+                                    (pos? openers) (recur (bit-set   value i) (dec i) (dec openers)     closers)
+                                    (pos? closers) (recur  (bit-clear value i) (dec i)      openers (dec closers))
                                     :else  (do
                                              ;(assert (neg? i))
                                              value))))]
@@ -64,7 +67,7 @@
                       (recur  value (cons value cumulated) closers-1)))))
               (humanise [number]
                 (clojure.string/replace
-                  (clojure.string/replace (java.lang.Long/toBinaryString number) ;toBinaryString is faster 40ms than clojure.pprint/cl-format 308ms.
+                  (clojure.string/replace (java.lang.Long/toBinaryString number) ;toBinaryString is fast: 40ms, rather than clojure.pprint/cl-format 308ms.
                     \1 \()
                   \0 \)))
               ; Shift the value by 1 bit. Then set (or not) the lowest bit.
