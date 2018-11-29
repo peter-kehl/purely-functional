@@ -8,25 +8,26 @@
   ; For n-pairs=12: 620-740ms. (map humanise ...) takes only 40-120ms out of the total.
   ; Added cons-closers => total 480ms. Turned off one last assert => total 460ms.
   (fn [n-pairs]
-    (let [n-pairs*2 (* 2 n-pairs)
-          n-pairs*2-1 (dec n-pairs*2)]
-      (letfn [(digits [numb]
+    (let [n-pairs*2 (int (* 2 n-pairs))
+          n-pairs*2-1 (int (dec n-pairs*2))]
+      (letfn [(digits [numb] ;Get binary digits of a number.
                 ;{:pre [(number? numb)]}
                 (vec (reverse (for [i (range 0 n-pairs*2)]
                                 (bit-test numb i)))))
               (count-digits [numb digit]
                 ;{:pre [(number? numb) (or (= true digit) (= false digit) #_no-boolean?-in-CLJ-1_4)]}
                 (count (filter (partial = digit) (digits numb))))
-              ; cons-closers is the number of consecutive closers ) from the very right.
-              (generate [^long prev cumulated ^long cons-closers]
+
+              ; cons-closers is the number of consecutive closers \) from the very right.
+              (generate [#_^long X prev cumulated #_^long X cons-closers]
                 ;(assert (and (<= 0 openers) (<= 0 closers) (<= 0 diff) (= diff (- closers openers))))
                 ;(assert (or (zero? diff) (pos? closers)))
                 ;(println "prev: " (clojure.pprint/cl-format nil "~,'0',B" prev))
                 ;(assert (= (count-digits prev true) (count-digits prev true) n-pairs) (str "prev: " prev))
                 (let [[swap-point openers closers]
-                      (loop [i cons-closers
-                             openers 0 ;(long 0)
-                             closers cons-closers]
+                      (loop [i (int cons-closers)
+                             openers (int 0)
+                             closers (int cons-closers)]
                         ;(assert (= i (+ openers closers)))
                         (if (bit-test prev i) #_an-opener?
                           (let [openers+1 (inc openers)]
@@ -41,14 +42,14 @@
                     cumulated #_finished
                     (let [;_ (assert (bit-test prev swap-point)) #_opener
                           closers-1 (dec closers)
-                          value (loop [value (bit-flip prev swap-point) #_opener==>closer
+                          value (loop [value (int (bit-flip prev swap-point)) #_opener==>closer
                                        i (dec swap-point) #_>>
                                        openers (inc openers)
                                        closers closers-1]
                                   ;(println "value in loop:" (clojure.pprint/cl-format nil "~,'0',B" value) "openers:" openers "closers:" closers)
                                   (cond
-                                    (pos? openers) (recur (bit-set   value i) (dec i) (dec openers)     closers)
-                                    (pos? closers) (recur (bit-clear value i) (dec i)      openers (dec closers))
+                                    (pos? openers) (recur (int (bit-set   value i)) (dec i) (dec openers)     closers)
+                                    (pos? closers) (recur (int (bit-clear value i)) (dec i)      openers (dec closers))
                                     :else  (do
                                              ;(assert (neg? i))
                                              value)))]
