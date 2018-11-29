@@ -5,6 +5,11 @@
 
 (defmacro assert-prim-long [x] `(== (long ~x) ~x)) ;works with primitive-math/use-primitive-operators and *warn-on-reflection* together
 
+(def shifted-ones (longs (long-array (for [i (range 0 63)]
+                                (bit-set 0 i)))))
+(defmacro bit-set-prim [x n]
+  `(bit-or ~x (aget (longs shifted-ones) ~n)))
+
 (def parens-flat-hint
   ; - prev: the last result
   ; binary 1 for an opener (, 0 for a closer )
@@ -51,15 +56,16 @@
                           value
                           #_loop-always-returns-object-hence-cast-its-result
                           (long (loop #_typehint-doesnt-help-right-after-loop-word
-                                      [#_typhint-didnt-help-here value (long (bit-flip prev swap-point)) #_opener==>closer
-                                       i (dec swap-point) #_>>
+                                       ;value is not (long ...), because then bit-set and bit-clear returned an Object anyway. Better keep it as an object so it will be passed to bit-set and bit-clear again.
+                                      [#_typhint-didnt-help-here value (bit-flip prev swap-point) #_opener==>closer
+                                       i (long (dec swap-point)) #_>>
                                        openers (inc openers)
                                        closers closers-1]
-                                  (assert-prim-long value)
+                                  ;(assert-prim-long value)
                                   ;(println "value in loop:" (clojure.pprint/cl-format nil "~,'0',B" value) "openers:" openers "closers:" closers)
                                   (cond
-                                    (pos? openers) (recur (bit-set   value i) (dec i) (dec openers)     closers)
-                                    (pos? closers) (recur  (bit-clear value i) (dec i)      openers (dec closers))
+                                    (pos? openers) (recur (bit-set-prim   value i) (dec i) (dec openers)     closers)
+                                    (pos? closers) (recur (bit-clear value i) (dec i)      openers (dec closers))
                                     :else  (do
                                              ;(assert (neg? i))
                                              value))))]
