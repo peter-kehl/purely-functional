@@ -94,9 +94,9 @@
               ; Shift the value by 1 bit. Then set (or not) the lowest bit.
               ; Use to set first n-pairs bits as openers (, then clear next n-pairs bits as closers )
               ; Not efficient, but it's only for starter. Return a pair (new-value bit) to be used with (iterate....). 
-              (shift-and-set-for-iterate [value]
+              (shift-and-set-for-iterate ^long [^long value]
                 ;{:pre [(number? value) (or (= true do-set) (= false do-set)) #_no-boolean?-in-CLJ-1_4]}
-                (let [shifted (bit-shift-left value 1)
+                (let [shifted (bit-shift-left value (long 1))
                       new-value (bit-set shifted 0)]
                   new-value))
                 ]
