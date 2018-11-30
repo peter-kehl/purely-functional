@@ -1,14 +1,28 @@
 (set! *warn-on-reflection* true)
 
 (require 'primitive-math)
-;(primitive-math/use-primitive-operators) ; must be used together with *warn-on-reflection*. It doesn't work without it!
+(primitive-math/use-primitive-operators) ; must be used together with *warn-on-reflection*. It doesn't work without it!
+(set! *warn-on-reflection* true) ;TODO this is for file-scope only?!
+; TODO report: (def one 1) (bit-shift-left one 1) (bit-or one 0) doesn't warn about reflection
 
-(defmacro assert-prim-long [x] `(== (long ~x) ~x)) ;works with primitive-math/use-primitive-operators and *warn-on-reflection* together
+(defmacro assert-prim-long [x] `(assert (== (long ~x) ~x))) ;works with primitive-math/use-primitive-operators and *warn-on-reflection* together
 
-(def shifted-ones (longs (long-array (for [i (range 0 63)]
-                                (bit-set 0 i)))))
-(defmacro bit-set-prim [x n]
-  `(bit-or ~x (aget (longs shifted-ones) ~n)))
+(def shifted-ones (long-array (for [i (range 0 63)]
+                                (bit-set (long 0) (long i))))) ;no need to (longs) the result. That even made it slower, but it didn't leave any type hints.
+(definline bit-set-prim [x n] ;Type hints don't make sense here, because parameters are injected in the code
+  `(bit-or  ~x (aget (longs shifted-ones ) ~n)))
+
+(def bit-not-fn clojure.core/bit-not) ;That works with higher-order functions, even if primitive-math is turned on.
+(def shifted-zeros (long-array (map bit-not-fn shifted-ones)))
+(definline bit-clear-prim [x n]
+  `(bit-and ~x (aget (longs shifted-zeros) ~n)))
+
+(ns-unmap *ns* 'bit-set)
+(ns-unmap *ns* 'bit-clear)
+(defmacro bit-set [x n]
+  `(bit-set-prim ~x ~n))
+(defmacro bit-clear [x n]
+  `(bit-clear-prim ~x ~n))
 
 (def parens-flat-hint
   ; - prev: the last result
@@ -21,7 +35,8 @@
   (fn [^long n-pairs]
     (let [n-pairs*2 (long (* 2 n-pairs))
           n-pairs*2-1 (long (dec n-pairs*2))]
-      (letfn [(digits [numb] ;Get binary digits of a number.
+      (letfn [;digits and count-digits are not fast, since they serve only for validation
+              (digits [numb] ;Get binary digits of a number.
                 ;{:pre [(number? numb)]}
                 (vec (reverse (for [i (range 0 n-pairs*2)]
                                 (bit-test numb i)))))
@@ -57,14 +72,14 @@
                           #_loop-always-returns-object-hence-cast-its-result
                           (long (loop #_typehint-doesnt-help-right-after-loop-word
                                        ;value is not (long ...), because then bit-set and bit-clear returned an Object anyway. Better keep it as an object so it will be passed to bit-set and bit-clear again.
-                                      [#_typhint-didnt-help-here value (bit-flip prev swap-point) #_opener==>closer
+                                      [#_typhint-didnt-help-here value (bit-clear prev swap-point) #_opener==>closer
                                        i (long (dec swap-point)) #_>>
                                        openers (inc openers)
                                        closers closers-1]
                                   ;(assert-prim-long value)
                                   ;(println "value in loop:" (clojure.pprint/cl-format nil "~,'0',B" value) "openers:" openers "closers:" closers)
                                   (cond
-                                    (pos? openers) (recur (bit-set-prim   value i) (dec i) (dec openers)     closers)
+                                    (pos? openers) (recur (bit-set   value i) (dec i) (dec openers)     closers)
                                     (pos? closers) (recur (bit-clear value i) (dec i)      openers (dec closers))
                                     :else  (do
                                              ;(assert (neg? i))
@@ -77,15 +92,14 @@
                     \1 \()
                   \0 \)))
               ; Shift the value by 1 bit. Then set (or not) the lowest bit.
-              ; Use with to set first n-pairs bits as openers (, then clear next n-pairs bits as closers )
+              ; Use to set first n-pairs bits as openers (, then clear next n-pairs bits as closers )
               ; Not efficient, but it's only for starter. Return a pair (new-value bit) to be used with (iterate....). 
-              (shift-and-set [[value do-set]]
+              (shift-and-set-for-iterate [value]
                 ;{:pre [(number? value) (or (= true do-set) (= false do-set)) #_no-boolean?-in-CLJ-1_4]}
                 (let [shifted (bit-shift-left value 1)
-                      new-value (if do-set
-                                  (bit-set shifted 0)
-                                  shifted)]
-                  (list new-value do-set)))]
+                      new-value (bit-set shifted 0)]
+                  new-value))
+                ]
         (into #{}
           (if (zero? n-pairs)
             ()
@@ -94,12 +108,21 @@
                     ; TODO the following runs indefinitely - but only with dbgf
                     ;starter-ones (first (nth ;/---- that "dbgf" causes a runaway. Maybe because iterate is static:?
                     ;                     (dbgf "iterate" iterate #(dbgf shift-and-set %) [0 true]) n-pairs))
-                    starter-ones (first (nth
-                                          (iterate #(shift-and-set %) [0 true]) n-pairs))
+                    ; TODO Why is the following faster than starter-ones from a (loop) with primitive hints below?!
+                    starter-ones-by-iterate (nth (iterate shift-and-set-for-iterate 0) n-pairs)
                     ;_ (println "starter-ones" (clojure.pprint/cl-format nil "~,'0',B" starter-ones))
-                    starter      (first (nth  (iterate shift-and-set [starter-ones false]) n-pairs)) #_see-also-next-assert]
+                    starter-by-iterate      (bit-shift-left (long starter-ones-by-iterate) (long n-pairs)) #_see-also-next-assert
+                    ;starter-by-iterate      (first (nth  (iterate shift-and-set-for-iterate [starter-ones-by-iterate false]) n-pairs)) #_see-also-next-assert
+                    #_starter-ones #_(loop [value (long 0)
+                                        i (long n-pairs)]
+                                   ;(assert-prim-long value)
+                                   (if (zero? i)
+                                     value
+                                     (recur (bit-set-prim (bit-shift-left value 1) 1)
+                                            (dec i))))
+                    ;starter (bit-shift-left (long starter-ones) (long n-pairs))
+                    ]
                 ;_ (println "starter" (clojure.pprint/cl-format nil "~,'0',B" starter))
                 ;_ (assert (= starter (bit-shift-left starter-ones n-pairs)))
                 ;_ (assert (= (digits starter) (concat (repeat n-pairs true) (repeat n-pairs false))))]
-                (generate starter (list starter) n-pairs)))))))))
-
+                (generate starter-by-iterate #_starter (list starter-by-iterate #_starter) n-pairs)))))))))
