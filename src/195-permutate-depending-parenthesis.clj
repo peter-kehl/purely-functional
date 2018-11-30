@@ -104,25 +104,32 @@
           (if (zero? n-pairs)
             ()
             (map humanise
-              (let [;n-pairs-1 (dec n-pairs)
+              (let [;;n-pairs-1 (dec n-pairs)
                     ; TODO the following runs indefinitely - but only with dbgf
-                    ;starter-ones (first (nth ;/---- that "dbgf" causes a runaway. Maybe because iterate is static:?
+                    ;;starter-ones (first (nth ;/---- that "dbgf" causes a runaway. Maybe because iterate is static:?
                     ;                     (dbgf "iterate" iterate #(dbgf shift-and-set %) [0 true]) n-pairs))
                     ; TODO Why is the following faster than starter-ones from a (loop) with primitive hints below?!
-                    starter-ones-by-iterate (nth (iterate shift-and-set-for-iterate 0) n-pairs)
-                    ;_ (println "starter-ones" (clojure.pprint/cl-format nil "~,'0',B" starter-ones))
-                    starter-by-iterate      (bit-shift-left (long starter-ones-by-iterate) (long n-pairs)) #_see-also-next-assert
-                    ;starter-by-iterate      (first (nth  (iterate shift-and-set-for-iterate [starter-ones-by-iterate false]) n-pairs)) #_see-also-next-assert
-                    #_starter-ones #_(loop [value (long 0)
+                    ;starter-ones-by-iterate (nth (iterate shift-and-set-for-iterate 0) n-pairs)
+                    ;;_ (println "starter-ones" (clojure.pprint/cl-format nil "~,'0',B" starter-ones))
+                    ;starter-by-iterate      (bit-shift-left (long starter-ones-by-iterate) (long n-pairs)) #_see-also-next-assert
+                    ;;;starter-by-iterate      (first (nth  (iterate shift-and-set-for-iterate [starter-ones-by-iterate false]) n-pairs)) #_see-also-next-assert
+                    #_starter-ones-SLOW #_(loop [value (long 0) ;Multiple (loop ) parameters make it slower than (iterate) with a compound-returning function!
                                         i (long n-pairs)]
                                    ;(assert-prim-long value)
                                    (if (zero? i)
                                      value
                                      (recur (bit-set-prim (bit-shift-left value 1) 1)
                                             (dec i))))
-                    ;starter (bit-shift-left (long starter-ones) (long n-pairs))
+                    starter-ones-stop-flag (long (bit-set (long 0) (dec n-pairs)))
+                    starter-ones (loop [value (long 0)]
+                                   (assert-prim-long value)
+                                   (if (pos? (bit-and value starter-ones-stop-flag)) ;pos? works, because we don't use all 64bits
+                                     value
+                                     (recur (bit-set (bit-shift-left value 1) 0))))
+                    _ (println "starter-ones" (java.lang.Long/toBinaryString starter-ones))
+                    starter (bit-shift-left (long starter-ones) (long n-pairs))
                     ]
                 ;_ (println "starter" (clojure.pprint/cl-format nil "~,'0',B" starter))
                 ;_ (assert (= starter (bit-shift-left starter-ones n-pairs)))
                 ;_ (assert (= (digits starter) (concat (repeat n-pairs true) (repeat n-pairs false))))]
-                (generate starter-by-iterate #_starter (list starter-by-iterate #_starter) n-pairs)))))))))
+                (generate #_starter-by-iterate starter (list #_starter-by-iterate starter) n-pairs)))))))))
