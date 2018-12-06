@@ -122,11 +122,11 @@
                                             (dec i))))
                     starter-ones-stop-flag (long (bit-set (long 0) (dec n-pairs)))
                     starter-ones (loop [value (long 0)]
-                                   (assert-prim-long value)
+                                   ;(assert-prim-long value)
                                    (if (pos? (bit-and value starter-ones-stop-flag)) ;pos? works, because we don't use all 64bits
                                      value
                                      (recur (bit-set (bit-shift-left value 1) 0))))
-                    _ (println "starter-ones" (java.lang.Long/toBinaryString starter-ones))
+                    ;_ (println "starter-ones" (java.lang.Long/toBinaryString starter-ones))
                     starter (bit-shift-left (long starter-ones) (long n-pairs))
                     ]
                 ;_ (println "starter" (clojure.pprint/cl-format nil "~,'0',B" starter))
